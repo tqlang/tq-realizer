@@ -2,8 +2,8 @@ namespace Abstract.Realizer.Core.Intermediate;
 
 public enum BinaryOperation
 {
-    Add,
-    Sub,
+    Add, AddWarp, AddSaturate,
+    Sub, SubWarp, SubSaturate,
     Mul,
     Div,
     Rem,

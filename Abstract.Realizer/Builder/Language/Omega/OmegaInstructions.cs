@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Numerics;
 using Abstract.Realizer.Builder.ProgramMembers;
 using Abstract.Realizer.Builder.References;
+using Abstract.Realizer.Core.Intermediate.Values;
 using TypeBuilder = Abstract.Realizer.Builder.ProgramMembers.TypeBuilder;
 
 using i16 = short;
@@ -17,13 +18,15 @@ namespace Abstract.Realizer.Builder.Language.Omega;
 public interface IOmegaInstruction { }
 public interface IOmegaFlag: IOmegaInstruction { }
 public interface IOmegaMacro: IOmegaInstruction { }
-public interface IOmegaTypePrefix { }
+public interface IOmegaTypePrefix : IOmegaFlag { }
+public interface IOmegaCompoundPrefix : IOmegaFlag { }
 public interface IOmegaRequiresTypePrefix { }
 
 public enum OmegaMetadataKind : u8
 {
     StructureName,
-    StructureSize,
+    StructureSizeBits,
+    StructureSizeBytes,
     StructureAlign,
     
     FunctionName,
@@ -145,49 +148,19 @@ public readonly struct InstMStaackLeave() : IOmegaInstruction
     public override string ToString() => "mstaack.leave";
 }
 
-public readonly struct InstLdConstI1(u1 value) : IOmegaInstruction
+public readonly struct InstLdConst(RealizerConstantValue value) : IOmegaInstruction
 {
-    public readonly u1 Value = value;
-    public override string ToString() => $"ld.const.i1 {Value}";
+    public readonly RealizerConstantValue Value = value;
+    public override string ToString() => $"ld.const {Value}";
 }
-public readonly struct InstLdConstIptr(u64 value) : IOmegaInstruction
+public readonly struct InstLdSlice(int idx) : IOmegaInstruction
 {
-    public readonly u64 Value = value;
-    public override string ToString() => $"ld.const.iptr 0x{Value:x} ;;{Value}";
+    public readonly int Index = idx;
+    public override string ToString() => $"ld.slice ${Index}";
 }
-public readonly struct InstLdConstI(u8 len, BigInteger value) : IOmegaInstruction
-{
-    public readonly u8 Len = len;
-    public readonly BigInteger Value = value;
-    public override string ToString() => $"ld.const.i{Len} 0x{Value:x} ;;{Value}";
-}
-public readonly struct InstLdConstNull : IOmegaInstruction
-{
-    public override string ToString() => "ld.const.null";
-}
-public readonly struct InstLdNewSlice : IOmegaInstruction
+public readonly struct InstLdNewSlice : IOmegaInstruction, IOmegaRequiresTypePrefix
 {
     public override string ToString() => "ld.new.slice";
-}
-public readonly struct InstLdSlicePtr(uint ptr, uint len) : IOmegaInstruction
-{
-    public readonly uint Pointer = ptr;
-    public readonly uint Length = len;
-    public override string ToString() => $"ld.slice ptr [0x{Pointer:x}..0x{Pointer + Length:x}]";
-}
-public readonly struct InstLdSlice(byte[] bytes) : IOmegaInstruction
-{
-    public readonly byte[] Content = bytes;
-    public override string ToString() => $"ld.slice [{string.Concat(Content.Select( e => $"{e:x2}"))}]";
-}
-public readonly struct InstLdStringUtf8(string value) : IOmegaInstruction
-{
-    public readonly string Value = value;
-    public override string ToString() => $"ld.string Utf8 \"{value
-            .Replace("\a", "\\a").Replace("\b", "\\b")
-            .Replace("\f", "\\f").Replace("\n", "\\n")
-            .Replace("\r", "\\r").Replace("\t", "\\t")
-            .Replace("\v", "\\v").Replace("\0", "\\0")}\"";
 }
 public readonly struct InstLdNewObject(StructureBuilder r) : IOmegaInstruction
 {
@@ -222,12 +195,12 @@ public readonly struct InstLdStaticFieldRef() : IOmegaInstruction
 public readonly struct InstLdField(InstanceFieldBuilder r) : IOmegaInstruction
 {
     public readonly InstanceFieldBuilder StaticField = r;
-    public override string ToString() => $"ld.field {StaticField.ToReadableReference()}";
+    public override string ToString() => $"ld.instance.field {StaticField.ToReadableReference()}";
 }
 public readonly struct InstLdFieldRef(StaticFieldBuilder r) : IOmegaInstruction
 {
     public readonly StaticFieldBuilder StaticField = r;
-    public override string ToString() => $"ld.field.ref";
+    public override string ToString() => $"ld.instance.field.ref";
 }
 public readonly struct InstLdIndex : IOmegaInstruction
 {
@@ -257,7 +230,8 @@ public readonly struct InstLdMeta(OmegaMetadataKind kind) : IOmegaInstruction
         
         OmegaMetadataKind.StructureName => "struct.name",
         OmegaMetadataKind.StructureAlign => "struct.align",
-        OmegaMetadataKind.StructureSize => "struct.size",
+        OmegaMetadataKind.StructureSizeBytes => "struct.size",
+        OmegaMetadataKind.StructureSizeBits => "struct.bitsize",
         
         _ => throw new UnreachableException()
     }}";
@@ -357,11 +331,15 @@ public readonly struct InstMemEq : IOmegaInstruction
 }
 
 
-public readonly struct FlagAllowOvf : IOmegaFlag
+public readonly struct FlagAllowOvf : IOmegaFlag, IOmegaCompoundPrefix
 {
     public override string ToString() => "allow.ovf.";
 }
-public readonly struct FlagAllowNil : IOmegaFlag
+public readonly struct FlagSaturated : IOmegaFlag, IOmegaCompoundPrefix
+{
+    public override string ToString() => "saturated.";
+}
+public readonly struct FlagAllowNil : IOmegaFlag, IOmegaCompoundPrefix
 {
     public override string ToString() => "allow.nil.";
 }
@@ -381,6 +359,14 @@ public readonly struct FlagTypeFloat(u8 size) : IOmegaFlag, IOmegaTypePrefix
 public readonly struct FlagTypeObject() : IOmegaFlag, IOmegaTypePrefix
 {
     public override string ToString() => "obj.";
+}
+public readonly struct FlagTypeReference() : IOmegaFlag, IOmegaTypePrefix
+{
+    public override string ToString() => "ref.";
+}
+public readonly struct FlagTypeAny() : IOmegaFlag, IOmegaTypePrefix
+{
+    public override string ToString() => "any.";
 }
 
 public readonly struct MacroDefineLocal(TypeReference typeref) : IOmegaMacro

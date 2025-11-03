@@ -1,12 +1,10 @@
-using Abstract.Realizer.Core.Intermediate.Types;
+using Abstract.Realizer.Core.Intermediate.Values;
 
 namespace Abstract.Realizer.Core.Intermediate.Language;
 
-internal class IrSlice(RealizerType ty, IrValue[] values) : IrValue
+internal class IrSlice(SliceConstantValue v) : IrValue
 {
-    public readonly RealizerType ItemType = ty;
-    public readonly IrValue[] Values = values;
+    public SliceConstantValue Buffer = v;
 
-    public override string ToString()
-        => $"(slice {ItemType} [{string.Concat(values.Select(( e => e.ToString())))}])";
+    public override string ToString() => $"{Buffer}";
 }

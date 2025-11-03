@@ -1,6 +1,6 @@
 namespace Abstract.Realizer.Core.Intermediate.Language;
 
-internal class IrValue : IrNode
+internal abstract class IrValue : IrNode
 {
     
 }

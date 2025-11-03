@@ -2,6 +2,7 @@ using System.Numerics;
 using System.Text;
 using Abstract.Realizer.Builder.ProgramMembers;
 using Abstract.Realizer.Builder.References;
+using Abstract.Realizer.Core.Intermediate.Values;
 using TypeBuilder = Abstract.Realizer.Builder.ProgramMembers.TypeBuilder;
 
 namespace Abstract.Realizer.Builder.Language.Omega;
@@ -28,12 +29,12 @@ public class OmegaBlockBuilder: BlockBuilder
         //     if (newline) sb.Append(";; ");
         //     newline = false;
         //     sb.Append(i);
-        //     
+        //    
         //     if (i is IOmegaFlag) continue;
         //     sb.AppendLine();
         //     newline = true;
         // }
-        //
+        
         if (sb.Length > Environment.NewLine.Length) sb.Length -= Environment.NewLine.Length;
         return sb.ToString();
     }
@@ -150,13 +151,9 @@ public class OmegaBlockBuilder: BlockBuilder
             case InstExtend @e: sb.Append($"extend {WriteInstructionValue(instQueue)}"); break;
             case InstConv @c: sb.Append($"conv {WriteInstructionValue(instQueue)}"); break;
             
-            case InstLdConstI @ldconsti: sb.Append($"(const {ldconsti.Len} 0x{ldconsti.Value:x})"); break;
-            case InstLdConstI1 @ldc: sb.Append("(const 1 " + (ldc.Value ? "true" : "false" + ")")); break;
-            case InstLdConstIptr @ldc: sb.Append($"(const ptr 0x{ldc.Value:x})"); break;
+            case InstLdConst @c: sb.Append($"{c.Value}"); break;
             
-            case InstLdSlicePtr @sliceptr: sb.Append($"(slice.ptr 0x{sliceptr.Pointer:x} {sliceptr.Length})"); break;
-            case InstLdSlice @slice: sb.Append($"(slice [{string.Concat(slice.Content.Select(e => $"{e:x2}"))}])"); break;
-            case InstLdStringUtf8 @str: sb.Append($"(string \"{str.Value}\""); break;
+            case InstLdSlice @slice: sb.Append($"(slice ${slice.Index})"); break;
             
             case InstLdLocal @ldl:
                 if (ldl.Local < 0) sb.Append($"(arg {(-ldl.Local)-1})");
@@ -193,7 +190,9 @@ public class OmegaBlockBuilder: BlockBuilder
                 sb.Append("(" + WriteInstructionValue(instQueue) + ")");
                 break;
             
-            default: throw new NotImplementedException();
+            default:
+                sb.Append($";; uninplemented {a}");
+                break;
         }
 
         if (instQueue.Count > 0 && instQueue.Peek() 
@@ -214,9 +213,15 @@ public class OmegaBlockBuilder: BlockBuilder
 
         private InstructionWriter AddAndReturn(IOmegaInstruction value)
         {
-            if (value is IOmegaRequiresTypePrefix && _parentBuilder._instructions[^1] is not IOmegaTypePrefix)
-                throw new Exception($"Instruction '{value}' expects type prefix");
+            if (value is IOmegaRequiresTypePrefix)
+            {
+                var c = _parentBuilder._instructions.Count - 1;
+                while (c >= 0 && _parentBuilder._instructions[c] is IOmegaCompoundPrefix) c--;
                 
+                if (_parentBuilder._instructions[c] is not IOmegaTypePrefix)
+                    throw new Exception($"Instruction '{value}' expects type prefix");
+            }
+
             _parentBuilder._instructions.Add(value);
             return this;
         }
@@ -247,15 +252,9 @@ public class OmegaBlockBuilder: BlockBuilder
         public InstructionWriter Branch(uint to) => AddAndReturn(new InstBranch(to));
         public InstructionWriter BranchIf(uint iftrue, uint iffalse) => AddAndReturn(new InstBranchIf(iftrue, iffalse));
         
-        public InstructionWriter LdConstI1(bool value) => AddAndReturn(new InstLdConstI1(value));
-        public InstructionWriter LdConstIptr(ulong value) => AddAndReturn(new InstLdConstIptr(value));
-        public InstructionWriter LdConstI(byte size, BigInteger value) => AddAndReturn(new InstLdConstI(size, value));
-        public InstructionWriter LdConstNull() => AddAndReturn(new InstLdConstNull());
-        
+        public InstructionWriter LdConst(RealizerConstantValue value) => AddAndReturn(new InstLdConst(value));
         public InstructionWriter LdNewSlice() => AddAndReturn(new InstLdNewSlice());
-        public InstructionWriter LdSlicePtr(uint ptr, uint len) => AddAndReturn(new InstLdSlicePtr(ptr, len));
-        public InstructionWriter LdSlice(byte[] data) => AddAndReturn(new InstLdSlice(data));
-        public InstructionWriter LdStringUtf8(string val) => AddAndReturn(new InstLdStringUtf8(val));
+        public InstructionWriter LdSlice(int index) => AddAndReturn(new InstLdSlice(index));
         public InstructionWriter LdNewObject(StructureBuilder r) => AddAndReturn(new InstLdNewObject(r));
         
         public InstructionWriter LdLocal(short index) => AddAndReturn(new InstLdLocal(index));
@@ -296,11 +295,14 @@ public class OmegaBlockBuilder: BlockBuilder
         public InstructionWriter MemEq() => AddAndReturn(new InstMemEq());
         
         public InstructionWriter AllowOvf() => AddAndReturn(new FlagAllowOvf());
+        public InstructionWriter Saturated() => AddAndReturn(new FlagSaturated());
         public InstructionWriter AllowNil() => AddAndReturn(new FlagAllowNil());
         
         public InstructionWriter TypeInt(bool signed, byte? size) => AddAndReturn(new FlagTypeInt(signed, size));
         public InstructionWriter TypeFloat(byte size) => AddAndReturn(new FlagTypeFloat(size));
         public InstructionWriter TypeObj() => AddAndReturn(new FlagTypeObject());
+        public InstructionWriter TypeAny() => AddAndReturn(new FlagTypeAny());
+        public InstructionWriter TypeReference() => AddAndReturn(new FlagTypeReference());
         
         public InstructionWriter MacroDefineLocal(TypeReference typer) => AddAndReturn(new MacroDefineLocal(typer));
     }

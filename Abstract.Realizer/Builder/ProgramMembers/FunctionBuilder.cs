@@ -3,6 +3,7 @@ using Abstract.Realizer.Builder.Language;
 using Abstract.Realizer.Builder.Language.Omega;
 using Abstract.Realizer.Builder.References;
 using Abstract.Realizer.Core.Intermediate.Language;
+using Abstract.Realizer.Core.Intermediate.Values;
 
 namespace Abstract.Realizer.Builder.ProgramMembers;
 
@@ -16,7 +17,8 @@ public class FunctionBuilder: BaseFunctionBuilder
                            && ntr.TypeReference == Parent);
 
     public readonly List<BlockBuilder> CodeBlocks = [];
-
+    public readonly List<RealizerConstantValue> DataBlocks = [];
+    
     internal FunctionBuilder(INamespaceOrStructureBuilder parent, string name, bool annonymous)
         : base(parent, name, annonymous) {}
     
@@ -32,6 +34,15 @@ public class FunctionBuilder: BaseFunctionBuilder
         return block;
     }
 
+    
+    public int AddDataBlock(RealizerConstantValue constant)
+    {
+        var index = DataBlocks.Count;
+        DataBlocks.Add(constant);
+        return index;
+    }
+    
+    
     public override string ToString()
     {
         var sb = new StringBuilder();
@@ -42,12 +53,18 @@ public class FunctionBuilder: BaseFunctionBuilder
 
         foreach (var builder in CodeBlocks)
         {
-            sb.AppendLine($"\n\t{builder.Name}:");
-            sb.AppendLine($"{builder.DumpInstructionsToString().TabAllLines().TabAllLines()}");
+            sb.AppendLine($"\n\t(block ${builder.Name}");
+            sb.Append($"{builder.DumpInstructionsToString().TabAllLines().TabAllLines()}");
+            sb.AppendLine(")");
         }
         if (CodeBlocks.Count == 0) sb.Append("(no_body)");
 
-        sb.Append(')');
+        foreach (var (i, b) in DataBlocks.Index())
+        {
+            sb.Append($"\n(data ${i} {b})");
+        }
+        
+        sb.AppendLine(")");
         return sb.ToString();
     }
     

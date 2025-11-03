@@ -6,6 +6,7 @@ using Abstract.Realizer.Core.Configuration.LangOutput;
 using Abstract.Realizer.Core.Intermediate;
 using Abstract.Realizer.Core.Intermediate.Language;
 using Abstract.Realizer.Core.Intermediate.Types;
+using Abstract.Realizer.Core.Intermediate.Values;
 
 namespace Abstract.Realizer.Compiler;
 
@@ -121,12 +122,20 @@ internal static class OmegaCompiler
                 else builder.Writer.LdLocal(-1); // FIXME maaaaybe it can cause undefined behavior
             } break;
             
-            case IrInteger constint: 
-                if (constint.Size.HasValue) builder.Writer.LdConstI(constint.Size.Value, constint.Value);
-                else builder.Writer.LdConstIptr(unchecked((ulong)(Int128)constint.Value));
-                break;
-            
-            case IrSliceBytes @slice: builder.Writer.LdSlice(slice.Values); break;
+            case IrConstValue constValue:
+                switch (constValue.Value)
+                {
+                    case IntegerConstantValue constint:
+                    {
+                        if (constint.BitSize != 0) builder.Writer.LdConst(new IntegerConstantValue(constint.BitSize, constint.Value));
+                        else builder.Writer.LdConst(new IntegerConstantValue(0, constint.Value));
+                    } break;
+                    case SliceConstantValue constslice:
+                    {
+                        var i = builder.Parent.AddDataBlock(constslice);
+                        builder.Writer.LdSlice(i);
+                    } break;
+                } break;
             
             case IrExtend ext:
                 UnwrapTypeFlag(builder, ext.ToType, configuration);
@@ -169,6 +178,7 @@ internal static class OmegaCompiler
         switch (t)
         {
             case IntegerType integerType: builder.Writer.TypeInt(integerType.Signed, integerType.Size ?? configuration.NativeIntegerSize); break;
+            case ReferenceType referenceType: builder.Writer.TypeReference(); break;
             default: throw new UnreachableException(t.ToString());
         }   
     }
