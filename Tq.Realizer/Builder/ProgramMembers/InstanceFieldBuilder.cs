@@ -5,13 +5,12 @@ namespace Tq.Realizer.Builder.ProgramMembers;
 
 public class InstanceFieldBuilder: FieldBuilder
 {
-    public TypeReference? Type { get; set; } = null;
     public uint? Offset { get; set; } = null;
     public uint? Alignment { get; set; } = null;
     public uint? Size { get; set; } = null;
     
-    internal InstanceFieldBuilder(INamespaceOrStructureBuilder parent, string name, bool annonymous)
-        : base(parent, name, annonymous) {}
+    internal InstanceFieldBuilder(INamespaceOrStructureBuilder parent, string name)
+        : base(parent, name) {}
 
 
     public override string ToString()

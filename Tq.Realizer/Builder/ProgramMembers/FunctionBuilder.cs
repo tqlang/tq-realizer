@@ -11,16 +11,12 @@ public class FunctionBuilder: BaseFunctionBuilder
 {
     public string? ExportSymbol = null;
 
-    public bool IsInstance => Parameters.Count > 0 
-                           && Parameters[0].name == "self"
-                           && (Parameters[0].type is ReferenceTypeReference { Subtype: NodeTypeReference @ntr } 
-                           && ntr.TypeReference == Parent);
-
     public readonly List<BlockBuilder> CodeBlocks = [];
     public readonly List<RealizerConstantValue> DataBlocks = [];
-    
-    internal FunctionBuilder(INamespaceOrStructureBuilder parent, string name, bool annonymous)
-        : base(parent, name, annonymous) {}
+
+    internal FunctionBuilder(INamespaceOrStructureOrTypedefBuilder parent, string name, bool isStatic)
+        : base(parent, name, isStatic)
+    {}
     
     
     public OmegaBlockBuilder CreateOmegaBytecodeBlock(string name)
@@ -57,14 +53,12 @@ public class FunctionBuilder: BaseFunctionBuilder
             sb.Append($"{builder.DumpInstructionsToString().TabAllLines().TabAllLines()}");
             sb.AppendLine(")");
         }
-        if (CodeBlocks.Count == 0) sb.Append("(no_body)");
+        if (CodeBlocks.Count == 0) sb.Append(" (no_body)");
 
         foreach (var (i, b) in DataBlocks.Index())
-        {
             sb.Append($"\n(data ${i} {b})");
-        }
         
-        sb.AppendLine(")");
+        sb.Append(')');
         return sb.ToString();
     }
     

@@ -5,58 +5,63 @@ namespace Tq.Realizer.Builder.ProgramMembers;
 public class StructureBuilder: TypeBuilder, INamespaceOrStructureBuilder
 {
     public StructureBuilder? Extends = null;
+    
     public List<InstanceFieldBuilder> Fields = [];
+    public List<BaseFunctionBuilder> Functions = [];
     
     public List<StaticFieldBuilder> StaticFields = [];
-    public List<BaseFunctionBuilder> Functions = [];
+    public List<StructureBuilder> InnerStructures = [];
+    public List<TypeDefinitionBuilder> InnerTypedefs = [];
+    public List<NamespaceBuilder> InnerNamespaces = [];
     
     public uint? Length = null;
     public uint? Alignment = null;
-    public uint? VTableSize = null;
     
-    internal StructureBuilder(INamespaceOrStructureBuilder parent, string name, bool annonymouns)
-        : base(parent, name, annonymouns) {}
-    
-    
-    public InstanceFieldBuilder AddField(string symbol)
+    internal StructureBuilder(INamespaceOrStructureBuilder parent, string name)
+        : base(parent, name) {}
+
+
+    public NamespaceBuilder AddNamespace(string symbol)
     {
-        var newField = new InstanceFieldBuilder(this, symbol, false);
-        Fields.Add(newField);
-        return newField;
+        var ns = new NamespaceBuilder(this, symbol);
+        InnerNamespaces.Add(ns);
+        return ns;
     }
-    public StaticFieldBuilder AddStaticField(string symbol)
+    public StructureBuilder AddStructure(string symbol)
     {
-        var newField = new StaticFieldBuilder(this, symbol, false);
-        StaticFields.Add(newField);
-        return newField;
+        var st = new StructureBuilder(this, symbol);
+        InnerStructures.Add(st);
+        return st;
     }
-    public FunctionBuilder AddFunction(string symbol)
+    public TypeDefinitionBuilder AddTypedef(string symbol)
     {
-        var newFunction = new FunctionBuilder(this, symbol, false);
+        var td = new TypeDefinitionBuilder(this, symbol);
+        InnerTypedefs.Add(td);
+        return td;
+    }
+    
+    public FieldBuilder AddField(string symbol, bool isStatic)
+    {
+        if (isStatic)
+        {
+            var newField = new StaticFieldBuilder(this, symbol);
+            StaticFields.Add(newField);
+            return newField;
+        }
+        else
+        {
+            var newField = new InstanceFieldBuilder(this, symbol);
+            Fields.Add(newField);
+            return newField;
+        }
+    }
+    public FunctionBuilder AddFunction(string symbol, bool isStatice)
+    {
+        var newFunction = new FunctionBuilder(this, symbol, isStatice);
         Functions.Add(newFunction);
         return newFunction;
     }
-    public VirtualFunctionBuilder AddVirtualFunction(string symbol, uint index)
-    {
-        var newFunction = new VirtualFunctionBuilder(this, symbol, index, false);
-        Functions.Add(newFunction);
-        return newFunction;
-    }
-    
-    public InstanceFieldBuilder AddAnnonymousField(string symbol)
-    {
-        var newField = new InstanceFieldBuilder(this, symbol, true);
-        Fields.Add(newField);
-        return newField;
-    }
-    public FunctionBuilder AddAnnonymousFunction(string symbol)
-    {
-        var newFunction = new FunctionBuilder(this, symbol, true);
-        Functions.Add(newFunction);
-        return newFunction;
-    }
-    
-    
+
     public override string ToString()
     {
         var sb = new StringBuilder();
@@ -69,8 +74,7 @@ public class StructureBuilder: TypeBuilder, INamespaceOrStructureBuilder
         if (Length != null) sb.Append($"(length {Length}) ");
         if (Alignment != null) sb.Append($"(alignment {Alignment})");
         if (Length != null || Alignment != null) sb.AppendLine();
-        if (VTableSize != null) sb.AppendLine($"\t(vtablelength {VTableSize.Value})");
-        
+
         foreach (var i in StaticFields) sb.AppendLine(i.ToString().TabAllLines());
         foreach (var i in Fields) sb.AppendLine(i.ToString().TabAllLines());
         foreach (var i in Functions) sb.AppendLine(i.ToString().TabAllLines());

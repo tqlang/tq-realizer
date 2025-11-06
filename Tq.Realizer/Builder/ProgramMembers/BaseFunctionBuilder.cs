@@ -7,9 +7,14 @@ public abstract class BaseFunctionBuilder: ProgramMemberBuilder
 {
     public List<(string name, TypeReference type)> Parameters = [];
     public TypeReference? ReturnType = null;
+    
+    public readonly bool IsStatic;
 
-    internal BaseFunctionBuilder(INamespaceOrStructureBuilder parent, string name, bool annonymous)
-        : base(parent, name, annonymous) { }
+    internal BaseFunctionBuilder(INamespaceOrStructureOrTypedefBuilder parent, string name, bool isStatic)
+        : base(parent, name)
+    {
+        IsStatic = isStatic;
+    }
     
     
     public int AddParameter(string name, TypeReference typeReference)
@@ -26,7 +31,7 @@ public abstract class BaseFunctionBuilder: ProgramMemberBuilder
         sb.AppendJoin('.', GlobalIdentifier);
         sb.Append('"');
         sb.Append(" (");
-        sb.AppendJoin(", ", Parameters.Select(e => e.Item2.ToString()));
+        sb.AppendJoin(", ", Parameters.Select(e => e.type.ToString()));
         sb.Append(')');
         sb.Append(ReturnType == null ? " void" : $" {ReturnType}");
         

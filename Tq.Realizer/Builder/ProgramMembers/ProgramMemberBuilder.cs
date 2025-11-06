@@ -3,21 +3,19 @@ namespace Tq.Realizer.Builder.ProgramMembers;
 public abstract class ProgramMemberBuilder
 {
     internal string _symbol;
+    public string Symbol => _symbol;
     public virtual ModuleBuilder Module => Parent?.Module!;
-    public INamespaceOrStructureBuilder? Parent { get; internal set; }
-    public readonly bool Annonymous;
+    public INamespaceOrStructureOrTypedefBuilder? Parent { get; internal set; }
     
-    public string Symbol => (Annonymous ? "__annon__" : "") + _symbol;
     
     public string[] GlobalIdentifier => Parent == null
-        ? [Symbol]
-        : [..Parent.GlobalIdentifier.Where(e=>!string.IsNullOrEmpty(e)), Symbol];
+        ? [_symbol]
+        : [..Parent.GlobalIdentifier.Where(e=>!string.IsNullOrEmpty(e)), _symbol];
     
-    internal ProgramMemberBuilder(INamespaceOrStructureBuilder parent, string symbol, bool annonymous)
+    internal ProgramMemberBuilder(INamespaceOrStructureOrTypedefBuilder parent, string symbol)
     {
         Parent = parent;
         _symbol = symbol;
-        Annonymous = annonymous;
     }
 
     public abstract string ToReadableReference();

@@ -19,16 +19,16 @@ internal static class Unnester
 
         foreach (var (module, content) in moduleMembers)
         {
-            module.fields.Clear();
-            module.functions.Clear();
-            module.structures.Clear();
-            module.typedefs.Clear();
-            module.namespaces.Clear();
+            module._fields.Clear();
+            module._functions.Clear();
+            module._structures.Clear();
+            module._typedefs.Clear();
+            module._namespaces.Clear();
             
-            module.fields = content.fields;
-            module.functions = content.functions;
-            module.structures = content.structs;
-            module.typedefs = content.typedefs;
+            module._fields = content.fields;
+            module._functions = content.functions;
+            module._structures = content.structs;
+            module._typedefs = content.typedefs;
             
         }
     }
@@ -44,11 +44,11 @@ internal static class Unnester
                 foreach (var strucs in nmsp.Structures) SelectMembersRecursive(strucs, module, content);
                 foreach (var funcs in nmsp.Functions) SelectMembersRecursive(funcs, module, content);
                 foreach (var typedef in nmsp.TypeDefinitions) SelectMembersRecursive(typedef, module, content);
-                nmsp.namespaces.Clear();
-                nmsp.fields.Clear();
-                nmsp.structures.Clear();
-                nmsp.functions.Clear();
-                nmsp.typedefs.Clear();
+                nmsp._namespaces.Clear();
+                nmsp._fields.Clear();
+                nmsp._structures.Clear();
+                nmsp._functions.Clear();
+                nmsp._typedefs.Clear();
             } break;
 
             case StructureBuilder @struc:

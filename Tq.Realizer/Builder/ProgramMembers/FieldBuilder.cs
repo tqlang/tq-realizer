@@ -1,7 +1,13 @@
+using Tq.Realizer.Builder.References;
+using Tq.Realizer.Core.Intermediate.Values;
+
 namespace Tq.Realizer.Builder.ProgramMembers;
 
 public abstract class FieldBuilder: ProgramMemberBuilder
 {
-    internal FieldBuilder(INamespaceOrStructureBuilder parent, string name, bool annonymous)
-        : base(parent, name, annonymous) {}
+    public TypeReference? Type = null;
+    public RealizerConstantValue? Value = null;
+    
+    internal FieldBuilder(INamespaceOrStructureBuilder parent, string name)
+        : base(parent, name) {}
 }

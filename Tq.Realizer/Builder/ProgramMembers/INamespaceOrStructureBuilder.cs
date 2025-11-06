@@ -1,7 +1,9 @@
 namespace Tq.Realizer.Builder.ProgramMembers;
 
-public interface INamespaceOrStructureBuilder
+public interface INamespaceOrStructureBuilder: INamespaceOrStructureOrTypedefBuilder
 {
-    public ModuleBuilder Module { get; }
-    public string[] GlobalIdentifier { get; }
+    public NamespaceBuilder AddNamespace(string symbol);
+    public StructureBuilder AddStructure(string symbol);
+    public TypeDefinitionBuilder AddTypedef(string symbol);
+    public FieldBuilder AddField(string symbol, bool isStatic);
 }
