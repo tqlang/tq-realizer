@@ -13,6 +13,7 @@ public class TypeDefinitionBuilder: TypeBuilder, INamespaceOrStructureOrTypedefB
 
     public (string key, RealizerConstantValue? value)[] NamedEntries => [.. _namedEntries];
     public BaseFunctionBuilder[] Functions => [.. _functions];
+    public ProgramMemberBuilder[] GetMembers() => [.. _functions];
     
     public void AddNamedEntry(string key, RealizerConstantValue? value = null) => _namedEntries.Add((key, value));
     public FunctionBuilder AddFunction(string symbol, bool isStatic)

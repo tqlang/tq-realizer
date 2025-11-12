@@ -17,6 +17,17 @@ public class StructureBuilder: TypeBuilder, INamespaceOrStructureBuilder
     public List<NamespaceBuilder> InnerNamespaces = [];
     public List<BaseFunctionBuilder> Functions = [];
     
+    public ProgramMemberBuilder[] GetMembers()
+        => [
+            ..Properties,
+            ..StaticProperties,
+            ..StaticFields,
+            ..InnerStructures,
+            ..InnerTypedefs,
+            ..InnerNamespaces,
+            ..Functions
+        ];
+    
     public uint? Length = null;
     public uint? Alignment = null;
     

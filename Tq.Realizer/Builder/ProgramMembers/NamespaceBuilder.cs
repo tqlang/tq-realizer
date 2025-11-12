@@ -19,6 +19,8 @@ public class NamespaceBuilder: ProgramMemberBuilder, INamespaceOrStructureBuilde
     public BaseFunctionBuilder[] Functions => [.. _functions];
     public StructureBuilder[] Structures => [.. _structures];
     public TypeDefinitionBuilder[] TypeDefinitions => [.. _typedefs];
+    public ProgramMemberBuilder[] GetMembers()
+        => [ .._namespaces, .._fields, .._functions, .._structures, .._typedefs ];
     
     
     internal NamespaceBuilder(INamespaceOrStructureBuilder parent, string name) : base(null!, name) { }
@@ -29,6 +31,8 @@ public class NamespaceBuilder: ProgramMemberBuilder, INamespaceOrStructureBuilde
         _namespaces.Add(newNamespace);
         return newNamespace;
     }
+    
+    
     public FunctionBuilder AddFunction(string symbol, bool isStatic)
     {
         var newFunction = new FunctionBuilder(this, symbol, isStatic);
