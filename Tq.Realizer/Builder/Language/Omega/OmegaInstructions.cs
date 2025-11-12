@@ -22,6 +22,7 @@ public interface IOmegaMacro: IOmegaInstruction { }
 public interface IOmegaTypePrefix : IOmegaFlag { }
 public interface IOmegaCompoundPrefix : IOmegaFlag { }
 public interface IOmegaRequiresTypePrefix { }
+public interface IOmegaFinishInstruction {}
 
 public enum OmegaMetadataKind : u8
 {
@@ -38,7 +39,7 @@ public readonly struct InstNop : IOmegaInstruction
 {
     public override string ToString() => "nop";
 }
-public readonly struct InstInvalid : IOmegaInstruction
+public readonly struct InstInvalid : IOmegaInstruction, IOmegaFinishInstruction
 {
     public override string ToString() => "invalid";
 }
@@ -53,7 +54,7 @@ public readonly struct InstCallvirt() : IOmegaInstruction
 {
     public override string ToString() => "call.virt";
 }
-public readonly struct InstRet(bool value) : IOmegaInstruction
+public readonly struct InstRet(bool value) : IOmegaInstruction, IOmegaFinishInstruction
 {
     public readonly bool value = value;
     public override string ToString() => "ret" + (value ? "v" : "");
@@ -126,12 +127,12 @@ public readonly struct InstRol : IOmegaInstruction, IOmegaRequiresTypePrefix
 }
 
 
-public readonly struct InstBranch(uint to) : IOmegaInstruction
+public readonly struct InstBranch(uint to) : IOmegaInstruction, IOmegaFinishInstruction
 {
     public readonly uint To = to;
     public override string ToString() => $"br {To}";
 }
-public readonly struct InstBranchIf(uint iftrue, uint iffalse) : IOmegaInstruction
+public readonly struct InstBranchIf(uint iftrue, uint iffalse) : IOmegaInstruction, IOmegaFinishInstruction
 {
     public readonly uint IfTrue = iftrue;
     public readonly uint IfFalse = iffalse;

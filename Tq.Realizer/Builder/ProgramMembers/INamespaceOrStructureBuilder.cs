@@ -6,4 +6,5 @@ public interface INamespaceOrStructureBuilder: INamespaceOrStructureOrTypedefBui
     public StructureBuilder AddStructure(string symbol);
     public TypeDefinitionBuilder AddTypedef(string symbol);
     public FieldBuilder AddField(string symbol, bool isStatic);
+    public PropertyBuilder AddProperty(string symbol, bool isStatic);
 }

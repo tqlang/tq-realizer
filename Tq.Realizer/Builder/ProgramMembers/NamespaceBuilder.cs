@@ -8,12 +8,14 @@ public class NamespaceBuilder: ProgramMemberBuilder, INamespaceOrStructureBuilde
     
     internal List<NamespaceBuilder> _namespaces = [];
     internal List<StaticFieldBuilder> _fields = [];
+    internal List<StaticPropertyBuilder> _props = [];
     internal List<BaseFunctionBuilder> _functions = [];
     internal List<StructureBuilder> _structures = [];
     internal List<TypeDefinitionBuilder> _typedefs = [];
 
     public NamespaceBuilder[] Namespaces => [.. _namespaces];
     public StaticFieldBuilder[] Fields => [.. _fields]; 
+    public StaticPropertyBuilder[] Properties => [.. _props]; 
     public BaseFunctionBuilder[] Functions => [.. _functions];
     public StructureBuilder[] Structures => [.. _structures];
     public TypeDefinitionBuilder[] TypeDefinitions => [.. _typedefs];
@@ -41,7 +43,16 @@ public class NamespaceBuilder: ProgramMemberBuilder, INamespaceOrStructureBuilde
         _fields.Add(newField);
         return newField;
     }
+
+    public PropertyBuilder AddProperty(string symbol, bool isStatic)
+    {
+        if (!isStatic) throw new TqInvalidMemberFlagException("Namespace cannot have non-static properties");
         
+        var newProperty = new StaticPropertyBuilder(this, symbol);
+        _props.Add(newProperty);
+        return newProperty;
+    }
+
     public StructureBuilder AddStructure(string symbol)
     {
         var newStructure = new StructureBuilder(this, symbol);
@@ -72,6 +83,7 @@ public class NamespaceBuilder: ProgramMemberBuilder, INamespaceOrStructureBuilde
         sb.AppendLine($"(namespace \"{Symbol}\"");
         foreach (var i in _namespaces) sb.AppendLine(i.ToString().TabAllLines());
         foreach (var i in _fields) sb.AppendLine(i.ToString().TabAllLines());
+        foreach (var i in _props) sb.AppendLine(i.ToString().TabAllLines());
         foreach (var i in _functions) sb.AppendLine(i.ToString().TabAllLines());
         foreach (var i in _structures) sb.AppendLine(i.ToString().TabAllLines());
         foreach (var i in _typedefs) sb.AppendLine(i.ToString().TabAllLines());

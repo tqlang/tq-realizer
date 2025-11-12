@@ -6,7 +6,7 @@ namespace Tq.Realizer.Builder.ProgramMembers;
 public abstract class FieldBuilder: ProgramMemberBuilder
 {
     public TypeReference? Type = null;
-    public RealizerConstantValue? Value = null;
+    public RealizerConstantValue? Initializer = null;
     
     internal FieldBuilder(INamespaceOrStructureBuilder parent, string name)
         : base(parent, name) {}

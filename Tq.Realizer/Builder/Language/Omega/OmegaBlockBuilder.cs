@@ -16,6 +16,8 @@ public class OmegaBlockBuilder: BlockBuilder
 
     internal OmegaBlockBuilder(FunctionBuilder parent, string name, uint idx) : base(parent, name, idx) {}
 
+
+    public bool IsBlockFinished() => _instructions.LastOrDefault(e => e is IOmegaFinishInstruction) != null;
     public override string DumpInstructionsToString()
     {
         var sb = new StringBuilder();
@@ -264,7 +266,6 @@ public class OmegaBlockBuilder: BlockBuilder
         public InstructionWriter LdField(StaticFieldBuilder r) => AddAndReturn(new InstLdStaticField(r));
         public InstructionWriter LdField(InstanceFieldBuilder r) => AddAndReturn(new InstLdField(r));
         public InstructionWriter LdFieldRef() => AddAndReturn(new InstLdFieldRef());
-        //public InstructionWriter LdFieldRef() => AddAndReturn(new InstLdStaticField());
         public InstructionWriter LdIndex() => AddAndReturn(new InstLdIndex());
         public InstructionWriter LdFuncRef(FunctionBuilder funcref) => AddAndReturn(new InstLdFuncRef(funcref));
         public InstructionWriter LdTypeRef(ProgramMembers_TypeBuilder typeref) => AddAndReturn(new InstLdTypeRef(typeref));

@@ -21,6 +21,7 @@ public class StaticFieldBuilder: FieldBuilder
         //if (Size != null) sb.Append($" (size {Size.Value})");
         
         sb.Append($" (type {Type?.ToString() ?? "<nil>"})");
+        if (Initializer != null) sb.Append($" {Initializer}");
         sb.Append(')');
 
         return sb.ToString();

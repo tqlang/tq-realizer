@@ -7,12 +7,15 @@ public class StructureBuilder: TypeBuilder, INamespaceOrStructureBuilder
     public StructureBuilder? Extends = null;
     
     public List<InstanceFieldBuilder> Fields = [];
-    public List<BaseFunctionBuilder> Functions = [];
     
+    public List<PropertyBuilder> Properties = [];
+    public List<StaticPropertyBuilder> StaticProperties = [];
     public List<StaticFieldBuilder> StaticFields = [];
+    
     public List<StructureBuilder> InnerStructures = [];
     public List<TypeDefinitionBuilder> InnerTypedefs = [];
     public List<NamespaceBuilder> InnerNamespaces = [];
+    public List<BaseFunctionBuilder> Functions = [];
     
     public uint? Length = null;
     public uint? Alignment = null;
@@ -55,6 +58,23 @@ public class StructureBuilder: TypeBuilder, INamespaceOrStructureBuilder
             return newField;
         }
     }
+
+    public PropertyBuilder AddProperty(string symbol, bool isStatic)
+    {
+        if (isStatic)
+        {
+            var newProperty = new StaticPropertyBuilder(this, symbol);
+            StaticProperties.Add(newProperty);
+            return newProperty;
+        }
+        else
+        {
+            var  newProperty = new InstancePropertyBuilder(this, symbol);
+            Properties.Add(newProperty);
+            return newProperty;
+        }
+    }
+
     public FunctionBuilder AddFunction(string symbol, bool isStatice)
     {
         var newFunction = new FunctionBuilder(this, symbol, isStatice);
@@ -76,7 +96,9 @@ public class StructureBuilder: TypeBuilder, INamespaceOrStructureBuilder
         if (Length != null || Alignment != null) sb.AppendLine();
 
         foreach (var i in StaticFields) sb.AppendLine(i.ToString().TabAllLines());
+        foreach (var i in StaticProperties) sb.AppendLine(i.ToString().TabAllLines());
         foreach (var i in Fields) sb.AppendLine(i.ToString().TabAllLines());
+        foreach (var i in Properties) sb.AppendLine(i.ToString().TabAllLines());
         foreach (var i in Functions) sb.AppendLine(i.ToString().TabAllLines());
         sb.Length -= Environment.NewLine.Length;
         sb.Append(')');
