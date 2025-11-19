@@ -10,7 +10,7 @@ public static class ObjectBaker
     public static void BakeTypeMetadata(
         ILanguageOutputConfiguration config,
         StructureBuilder[] structs,
-        TypeDefinitionBuilder[] typedefs)
+        TypedefBuilder[] typedefs)
     {
         
         BakeTypedefs(config, typedefs);
@@ -25,10 +25,7 @@ public static class ObjectBaker
     {
         List<StructureBuilder> toiter = structs.ToList();
         Dictionary<StructureBuilder, (uint a, uint s)> baked = [];
-
-        // FIXME cyclic dependencies will result in 
-        // infinite loop
-
+        
         looooop:
         if (toiter.Count == 0) goto end;
         for (var i = 0; i < toiter.Count; i++)
@@ -66,7 +63,7 @@ public static class ObjectBaker
                                 j.Alignment = struc.Alignment;
                                 break;
                             
-                            case TypeDefinitionBuilder @typedef:
+                            case TypedefBuilder @typedef:
                                 j.Size = configuration.NativeIntegerSize;
                                 j.Alignment = configuration.NativeIntegerSize;
                                 break;
@@ -78,12 +75,26 @@ public static class ObjectBaker
                         j.Alignment = configuration.NativeIntegerSize;
                         break;
                     
+                    case SliceTypeReference:
+                        j.Size = (uint)(configuration.NativeIntegerSize * 2);
+                        j.Alignment = configuration.NativeIntegerSize;
+                        break;
+                    
                     default: throw new UnreachableException();
                 }
                 size += j.Size!.Value;
                 minAlig = Math.Max(minAlig, j.Alignment!.Value);
             }
-            
+
+            if ((configuration.GenericAllowedFeatures & GenericAllowedFeatures.UseLdSelfInsteadArg0) == 0)
+                foreach (var functions in cur.Functions)
+                {
+                    functions.Parameters = [
+                        ("self", new ReferenceTypeReference(new NodeTypeReference(cur))),
+                        ..functions.Parameters
+                    ];
+                }
+
             cur.Alignment = minAlig;
             cur.Length = size;
             baked.Add(cur, (minAlig, size));
@@ -98,7 +109,7 @@ public static class ObjectBaker
     
     private static void BakeTypedefs(
         ILanguageOutputConfiguration config,
-        TypeDefinitionBuilder[] typedefs)
+        TypedefBuilder[] typedefs)
     {
         
     }

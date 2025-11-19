@@ -16,7 +16,7 @@ public class NodeTypeReference : TypeReference
         init { }
     }
 
-    public NodeTypeReference(TypeDefinitionBuilder typedef) => TypeReference = typedef;
+    public NodeTypeReference(TypedefBuilder typedef) => TypeReference = typedef;
 
     public NodeTypeReference(StructureBuilder structure) =>TypeReference = structure;
 

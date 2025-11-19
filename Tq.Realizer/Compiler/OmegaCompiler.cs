@@ -12,14 +12,20 @@ namespace Tq.Realizer.Compiler;
 
 internal static class OmegaCompiler
 {
-    public static OmegaBlockBuilder CompileBlock(IntermediateBlockBuilder intermediateBlock, OmegaOutputConfiguration config)
+    public static OmegaBlockBuilder CompileBlock(
+        IntermediateBlockBuilder intermediateBlock,
+        OmegaOutputConfiguration config)
     {
         var block = new OmegaBlockBuilder(intermediateBlock.Parent, intermediateBlock.Name, intermediateBlock.Index);
         UnwrapNode(block, intermediateBlock.Root, DataMode.Load, config);
         return block;
     }
     
-    private static void UnwrapNode(OmegaBlockBuilder builder, IrNode node, DataMode datamode, OmegaOutputConfiguration configuration)
+    private static void UnwrapNode(
+        OmegaBlockBuilder builder,
+        IrNode node,
+        DataMode datamode,
+        OmegaOutputConfiguration configuration)
     {
         switch (node)
         {
@@ -118,7 +124,7 @@ internal static class OmegaCompiler
 
             case IrSelf:
             {
-                if ((configuration.AllowedInstructions & OmegaInstructions.LdSelf) != 0) builder.Writer.LdSelf();
+                if ((configuration.GenericAllowedFeatures & GenericAllowedFeatures.UseLdSelfInsteadArg0) != 0) builder.Writer.LdSelf();
                 else builder.Writer.LdLocal(-1); // FIXME maaaaybe it can cause undefined behavior
             } break;
             
@@ -173,7 +179,10 @@ internal static class OmegaCompiler
         }
     }
 
-    private static void UnwrapTypeFlag(OmegaBlockBuilder builder, RealizerType t, OmegaOutputConfiguration configuration)
+    private static void UnwrapTypeFlag(
+        OmegaBlockBuilder builder,
+        RealizerType t, 
+        OmegaOutputConfiguration configuration)
     {
         switch (t)
         {
@@ -185,7 +194,10 @@ internal static class OmegaCompiler
 
     private enum DataMode
     {
-        Load, Store, 
-        LoadRef, StoreRef
+        Load,
+        LoadRef,
+        
+        Store, 
+        StoreRef
     }
 }

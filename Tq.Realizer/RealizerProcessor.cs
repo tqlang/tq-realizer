@@ -10,7 +10,12 @@ namespace Tq.Realizer;
 public class RealizerProcessor
 {
 
-    public string? DebugDumpPath { get; set; } = null;
+    private string? _debugDumpPath = null;
+    public string? DebugDumpPath
+    {
+        get => _debugDumpPath;
+        set => _debugDumpPath = value == null ? null : Path.GetFullPath(value);
+    }
     public bool Verbose { get; set; } = false;
 
     private ProgramBuilder program;
@@ -21,24 +26,27 @@ public class RealizerProcessor
     private List<FunctionBuilder> functions = [];
     private List<StaticFieldBuilder> fields = [];
     private List<StructureBuilder> structs = [];
-    private List<TypeDefinitionBuilder> typedefs = [];
+    private List<TypedefBuilder> typedefs = [];
 
     public void SelectProgram(ProgramBuilder program) => this.program = program;
-    public void SelectConfiguration(ILanguageOutputConfiguration config) => configuration = config;
+
+    public void SelectConfiguration(ILanguageOutputConfiguration config)  => configuration = config;
 
     public void Start()
     {
         if (processRunning) throw new Exception("Already running");
         processRunning = true;
-        
+
         if (DebugDumpPath != null)
             File.WriteAllTextAsync(Path.Combine(DebugDumpPath, "Stage0.txt"), program.ToString());
-        
+
         UnwrapRecursive(program);
         
         Optimize(OptimizationOption.ExpandMacros);
         Optimize(OptimizationOption.Unnest);
         Optimize(OptimizationOption.PackStructures);
+        Optimize(OptimizationOption.NormalizeFunctions);
+
     }
     public ProgramBuilder Compile()
     {
@@ -95,6 +103,10 @@ public class RealizerProcessor
                 Unnester.UnnestProgram(program);
                 break;
             
+            case OptimizationOption.NormalizeFunctions:
+                foreach (var function in functions) FunctionNormalizer.NormalizeFunction(function, configuration);
+                    break;
+            
             default: throw new ArgumentOutOfRangeException(nameof(optimization), optimization, null);
         }
         
@@ -132,7 +144,7 @@ public class RealizerProcessor
                 foreach (var f in s.Functions) UnwrapRecursive(f);
                 break;
             
-            case TypeDefinitionBuilder @t:
+            case TypedefBuilder @t:
                 typedefs.Add(@t);
                 //TODO
                 break;
@@ -155,10 +167,10 @@ public class RealizerProcessor
     }
     public enum OptimizationOption
     {
-        NormalizeMemoryStack,
-        ExpandMacros,
         Unnest,
+        ExpandMacros,
         PackStructures,
+        NormalizeFunctions,
     }
     
 }

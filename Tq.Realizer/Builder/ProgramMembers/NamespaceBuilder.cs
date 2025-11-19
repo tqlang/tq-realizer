@@ -11,16 +11,16 @@ public class NamespaceBuilder: ProgramMemberBuilder, INamespaceOrStructureBuilde
     internal List<StaticPropertyBuilder> _props = [];
     internal List<BaseFunctionBuilder> _functions = [];
     internal List<StructureBuilder> _structures = [];
-    internal List<TypeDefinitionBuilder> _typedefs = [];
+    internal List<TypedefBuilder> _typedefs = [];
 
     public NamespaceBuilder[] Namespaces => [.. _namespaces];
     public StaticFieldBuilder[] Fields => [.. _fields]; 
     public StaticPropertyBuilder[] Properties => [.. _props]; 
     public BaseFunctionBuilder[] Functions => [.. _functions];
     public StructureBuilder[] Structures => [.. _structures];
-    public TypeDefinitionBuilder[] TypeDefinitions => [.. _typedefs];
+    public TypedefBuilder[] TypeDefinitions => [.. _typedefs];
     public ProgramMemberBuilder[] GetMembers()
-        => [ .._namespaces, .._fields, .._functions, .._structures, .._typedefs ];
+        => [ .._namespaces, .._props, .._fields, .._functions, .._structures, .._typedefs ];
     
     
     internal NamespaceBuilder(INamespaceOrStructureBuilder parent, string name) : base(null!, name) { }
@@ -63,9 +63,9 @@ public class NamespaceBuilder: ProgramMemberBuilder, INamespaceOrStructureBuilde
         _structures.Add(newStructure);
         return newStructure;
     }
-    public TypeDefinitionBuilder AddTypedef(string symbol)
+    public TypedefBuilder AddTypedef(string symbol)
     {
-        var newTypedef = new TypeDefinitionBuilder(this, symbol);
+        var newTypedef = new TypedefBuilder(this, symbol);
         _typedefs.Add(newTypedef);
         return newTypedef;
     }

@@ -8,16 +8,14 @@ public class OmegaOutputConfiguration : ILanguageOutputConfiguration
     public byte MemoryUnit { get; init; }
     public byte NativeIntegerSize { get; init; }
     
-    
-    public OmegaInstructions AllowedInstructions { get; init; } 
+    public GenericAllowedFeatures GenericAllowedFeatures { get; init; }
+    public OmegaAllowedFeatures OmegaAllowedFeatures { get; init; } 
 }
 
 
 [Flags]
-public enum OmegaInstructions
+public enum OmegaAllowedFeatures
 {
     None = 0,
-    All = Int32.MaxValue,
-    
-    LdSelf = 1 << 0,
+    All = 0,
 }

@@ -6,14 +6,15 @@ public class StructureBuilder: TypeBuilder, INamespaceOrStructureBuilder
 {
     public StructureBuilder? Extends = null;
     
-    public List<InstanceFieldBuilder> Fields = [];
     
     public List<PropertyBuilder> Properties = [];
     public List<StaticPropertyBuilder> StaticProperties = [];
+    
+    public List<InstanceFieldBuilder> Fields = [];
     public List<StaticFieldBuilder> StaticFields = [];
     
     public List<StructureBuilder> InnerStructures = [];
-    public List<TypeDefinitionBuilder> InnerTypedefs = [];
+    public List<TypedefBuilder> InnerTypedefs = [];
     public List<NamespaceBuilder> InnerNamespaces = [];
     public List<BaseFunctionBuilder> Functions = [];
     
@@ -21,6 +22,7 @@ public class StructureBuilder: TypeBuilder, INamespaceOrStructureBuilder
         => [
             ..Properties,
             ..StaticProperties,
+            ..Fields,
             ..StaticFields,
             ..InnerStructures,
             ..InnerTypedefs,
@@ -47,9 +49,9 @@ public class StructureBuilder: TypeBuilder, INamespaceOrStructureBuilder
         InnerStructures.Add(st);
         return st;
     }
-    public TypeDefinitionBuilder AddTypedef(string symbol)
+    public TypedefBuilder AddTypedef(string symbol)
     {
-        var td = new TypeDefinitionBuilder(this, symbol);
+        var td = new TypedefBuilder(this, symbol);
         InnerTypedefs.Add(td);
         return td;
     }

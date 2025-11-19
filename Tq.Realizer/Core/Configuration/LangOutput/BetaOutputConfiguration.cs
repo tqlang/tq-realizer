@@ -7,6 +7,7 @@ public struct BetaOutputConfiguration : ILanguageOutputConfiguration
     
     public byte MemoryUnit { get; init; }
     public byte NativeIntegerSize { get; init; }
+    public GenericAllowedFeatures GenericAllowedFeatures { get; init; }
 
     public BetaExtendableInstructionSet EnabledOpcodes { get; init; }
     public BetaExtendableScopes EnabledScopes { get; init; }

@@ -4,7 +4,7 @@ public interface INamespaceOrStructureBuilder: INamespaceOrStructureOrTypedefBui
 {
     public NamespaceBuilder AddNamespace(string symbol);
     public StructureBuilder AddStructure(string symbol);
-    public TypeDefinitionBuilder AddTypedef(string symbol);
+    public TypedefBuilder AddTypedef(string symbol);
     public FieldBuilder AddField(string symbol, bool isStatic);
     public PropertyBuilder AddProperty(string symbol, bool isStatic);
 }

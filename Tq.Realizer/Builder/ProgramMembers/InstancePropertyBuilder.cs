@@ -13,7 +13,7 @@ public class InstancePropertyBuilder(INamespaceOrStructureOrTypedefBuilder paren
     {
         var sb = new StringBuilder();
 
-        sb.Append($"(prop \"{Symbol}\"");
+        sb.Append($"(prop \"{Symbol}\" {Type?.ToString() ?? "<nil>"}");
         if (Getter != null) sb.Append($"\n\t(getter {Getter.ToReadableReference()})");
         if (Setter != null) sb.Append($"\n\t(setter {Setter.ToReadableReference()})");
         sb.Append(')');

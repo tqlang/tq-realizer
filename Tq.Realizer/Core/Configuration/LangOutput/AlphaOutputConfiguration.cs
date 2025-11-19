@@ -7,4 +7,6 @@ public struct AlphaOutputConfiguration : ILanguageOutputConfiguration
     
     public byte MemoryUnit { get; init; }
     public byte NativeIntegerSize { get; init; }
+    
+    public GenericAllowedFeatures GenericAllowedFeatures { get; init; }
 }

@@ -1,12 +1,14 @@
 using System.Text;
+using Tq.Realizer.Builder.References;
 using Tq.Realizer.Core.Intermediate.Values;
 
 namespace Tq.Realizer.Builder.ProgramMembers;
 
-public class TypeDefinitionBuilder: TypeBuilder, INamespaceOrStructureOrTypedefBuilder
+public class TypedefBuilder: TypeBuilder, INamespaceOrStructureOrTypedefBuilder
 {
+    public TypeReference? BackingType = null;
     
-    internal TypeDefinitionBuilder(INamespaceOrStructureBuilder parent, string name) : base(parent, name) {}
+    internal TypedefBuilder(INamespaceOrStructureBuilder parent, string name) : base(parent, name) {}
     
     internal List<(string key, RealizerConstantValue? value)> _namedEntries = [];
     internal List<BaseFunctionBuilder> _functions = [];

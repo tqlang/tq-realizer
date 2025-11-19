@@ -58,7 +58,7 @@ internal static class Unnester
                 struc.StaticFields.Clear();
                 break;
             
-            case TypeDefinitionBuilder @typedef:
+            case TypedefBuilder @typedef:
                 content.typedefs.Add(typedef);
                 //TODO Typedef functions
                 break;
@@ -72,7 +72,7 @@ internal static class Unnester
         if (member == module) return;
         
         var global = string.Join('.', member.Parent?.GlobalIdentifier ?? []);
-        member._symbol = global + '.' + member._symbol;
+        member._symbol = string.Join('.', member.GlobalIdentifier[1..]);
         member.Parent = module;
     }
 
@@ -81,6 +81,6 @@ internal static class Unnester
         public List<StaticFieldBuilder> fields = [];
         public List<BaseFunctionBuilder> functions = [];
         public List<StructureBuilder> structs = [];
-        public List<TypeDefinitionBuilder> typedefs = [];
+        public List<TypedefBuilder> typedefs = [];
     }
 }

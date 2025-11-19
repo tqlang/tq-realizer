@@ -12,7 +12,7 @@ public class StaticPropertyBuilder(INamespaceOrStructureOrTypedefBuilder parent,
     {
         var sb = new StringBuilder();
 
-        sb.Append($"(prop static \"{Symbol}\"");
+        sb.Append($"(prop static \"{Symbol}\" {Type?.ToString() ?? "<nil>"}");
         if (Getter != null) sb.Append($"\n\t(getter {Getter.ToReadableReference()})");
         if (Setter != null) sb.Append($"\n\t(setter {Setter.ToReadableReference()})");
         sb.Append(')');
