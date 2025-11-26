@@ -10,7 +10,7 @@ public static class RealizerModules
     private static string ModulesPath => string.Concat(AppContext.BaseDirectory, "Modules");
     private static List<IModule> _modules = [];
     public static IModule[] Modules => [.. _modules];
-    public static ModuleLanguageTargetConfiguration[] Targets => _modules
+    public static TargetConfiguration[] Targets => _modules
         .Select(e => e.Config)
         .SelectMany(e => e.Targets).ToArray();
     
@@ -35,6 +35,6 @@ public static class RealizerModules
         }
     }
     
-    public static ModuleLanguageTargetConfiguration Find(string identifier) => Targets
+    public static TargetConfiguration Find(string identifier) => Targets
         .FirstOrDefault(e => e.TargetIdentifier == identifier)!;
 }
