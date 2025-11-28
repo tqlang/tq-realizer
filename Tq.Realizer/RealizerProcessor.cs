@@ -3,6 +3,7 @@ using Tq.Realizeer.Core.Program.Builder;
 using Tq.Realizeer.Core.Program.Member;
 using Tq.Realizer.Compiler;
 using Tq.Realizer.Core.Configuration.LangOutput;
+using Tq.Realizer.Passes;
 
 namespace Tq.Realizer;
 
@@ -44,8 +45,11 @@ public class RealizerProcessor
         processRunning = true;
 
         TryDumpProgram("setup");
+
+        stage++;
+        Format.Pass(program, configuration);
         
-        // TODO unwrap + optimize
+        TryDumpProgram("format");
 
     }
     public RealizerProgram Compile()

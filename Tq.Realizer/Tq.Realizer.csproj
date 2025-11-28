@@ -8,10 +8,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Optimization\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\..\Tq.Realizer.Core\Tq.Realizer.Core.csproj" />
     </ItemGroup>
 
