@@ -48,9 +48,13 @@ public class RealizerProcessor
 
         stage++;
         Format.Pass(program, configuration);
-        
         TryDumpProgram("format");
 
+        stage++;
+        Analysis.Pass(program, configuration);
+        TryDumpProgram("analysis");
+
+        
     }
     public RealizerProgram Compile()
     {
