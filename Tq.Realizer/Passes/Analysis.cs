@@ -32,7 +32,7 @@ public class Analysis
         {
             structure.RemoveMember(i);
             fields.Add(i);
-            i.OverrideBitAlignment(i.Type.Alignment);
+            i.OverrideBitAlignment(i.Type!.Alignment);
         }
         
         fields.Sort((a, b) =>
