@@ -47,8 +47,8 @@ public class RealizerProcessor
         TryDumpProgram("setup");
 
         stage++;
-        Format.Pass(program, configuration);
-        TryDumpProgram("format");
+        Abstract.Pass(program, configuration);
+        TryDumpProgram("abstract");
 
         stage++;
         Analysis.Pass(program, configuration);
@@ -67,25 +67,7 @@ public class RealizerProcessor
             OmegaOutputConfiguration => LanguageOutput.Omega,
             _ => throw new ArgumentOutOfRangeException(),
         };
-        if (Verbose) Console.WriteLine($"Realizer: Compiling to {compileTo}...");
 
-        // foreach (var function in functions)
-        // {
-        //     foreach (var (i, b) in function.CodeBlocks.ToArray().Index())
-        //     {
-        //         if (b is not IntermediateBlockBuilder @block) throw new Exception("Invalid block type");
-        //         
-        //         function.CodeBlocks[i] = compileTo switch
-        //         {
-        //             LanguageOutput.Omega => OmegaCompiler.CompileBlock(block, (OmegaOutputConfiguration)configuration),
-        //             
-        //             LanguageOutput.Alpha or 
-        //                 LanguageOutput.Beta or
-        //             _ => throw new NotImplementedException()
-        //         };
-        //     }=
-        // }
-        
         TryDumpProgram("compile");
         return program;
     }
