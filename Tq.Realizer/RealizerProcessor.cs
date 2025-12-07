@@ -47,12 +47,12 @@ public class RealizerProcessor
         TryDumpProgram("setup");
 
         stage++;
-        Abstract.Pass(program, configuration);
-        TryDumpProgram("abstract");
-
-        stage++;
-        Analysis.Pass(program, configuration);
+        new Analysis().Pass(program, configuration);
         TryDumpProgram("analysis");
+        
+        stage++;
+        new Abstract().Pass(program, configuration);
+        TryDumpProgram("abstract");
 
         
     }

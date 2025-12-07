@@ -31,7 +31,7 @@ public static class RealizerModules
         {
             var minstance = (IModule)Activator.CreateInstance(module)!;
             _modules.Add(minstance);
-            Console.WriteLine($"Loaded module {module.Name}");
+            Console.WriteLine($"Loaded module {minstance.Config.Name} v.{minstance.Config.Version}");
         }
     }
     

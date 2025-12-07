@@ -1,251 +1,278 @@
-using System.ComponentModel;
 using System.Diagnostics;
 using Tq.Realizeer.Core.Program;
 using Tq.Realizeer.Core.Program.Builder;
 using Tq.Realizeer.Core.Program.Member;
 using Tq.Realizer.Core.Builder.Execution.Omega;
-using Tq.Realizer.Core.Builder.Language.Omega;
 using Tq.Realizer.Core.Builder.References;
 using Tq.Realizer.Core.Configuration.LangOutput;
 using static Tq.Realizer.Core.Builder.Language.Omega.OmegaInstructions;
 
 namespace Tq.Realizer.Passes;
 
-internal static class Abstract
+internal class Abstract: IProcessingPass
 {
-
-    public static void Pass(RealizerProgram program, IOutputConfiguration outConfig)
+    private RealizerProgram _program;
+    private IOutputConfiguration _outConfig;
+    
+    private bool unwrapContainers => (_outConfig.AbstractingOptions & AbstractingOptions.NoNamespaces) != 0;
+    private bool noInstanceMethod => (_outConfig.AbstractingOptions & AbstractingOptions.NoInstanceMethod) != 0;
+    private bool noInheritance => (_outConfig.AbstractingOptions & AbstractingOptions.NoInheritance) != 0;
+    private bool canUseLdSelf => (_outConfig.GenericAllowedFeatures & GenericAllowedFeatures.LdSelf) != 0;
+    
+    public void Pass(RealizerProgram program, IOutputConfiguration outConfig)
     {
-        foreach (var i in program.Modules) FormatProgramRecursive(i, outConfig);
+        _program = program;
+        _outConfig = outConfig;
+        
+        foreach (var module in program.Modules)
+            FormatProgramRecursive(module);
     }
 
-    private static void FormatProgramRecursive(RealizerMember member, IOutputConfiguration outConfig)
+    private void FormatProgramRecursive(RealizerMember member)
     {
         var parent = member.Parent!;
-        
+
         switch (member)
         {
             case RealizerModule module:
-                foreach (var i in module.GetMembers().ToArray()) FormatProgramRecursive(i, outConfig);
+                foreach (var m in module.GetMembers().ToArray()) FormatProgramRecursive(m);
                 break;
-            
-            case RealizerNamespace @nmsp:
-            {
-                foreach (var i in nmsp.GetMembers().ToArray()) FormatProgramRecursive(i, outConfig);
 
-                if ((outConfig.AbstractingOptions & AbstractingOptions.UnwrapNamespaces) == 0) return;
+            case RealizerNamespace nmsp:
+            {
+                foreach (var m in nmsp.GetMembers().ToArray()) FormatProgramRecursive(m);
                 
+                if (!unwrapContainers) return;
                 parent.RemoveMember(nmsp);
-                foreach (var i in nmsp.GetMembers().ToArray())
+                foreach (var m in nmsp.GetMembers().ToArray())
                 {
-                    nmsp.RemoveMember(i);
-                    i.Name = nmsp.Name + '.' + i.Name;
-                    parent.AddMember(i);
+                    nmsp.RemoveMember(m);
+                    m.Name = nmsp.Name + "." + m.Name;
+                    parent.AddMember(m);
                 }
                 
             } break;
 
             case RealizerStructure @struct:
+            case RealizerTypedef typedef:
             {
-                foreach (var i in @struct.GetMembers().ToArray()) FormatProgramRecursive(i, outConfig);
+                var container = (RealizerContainer)member;
 
-                var nonmsp = (outConfig.AbstractingOptions & AbstractingOptions.UnwrapNamespaces) != 0;
-                var forcestatic = (outConfig.AbstractingOptions & AbstractingOptions.NoSelfInstructions) != 0;
+                foreach (var m in container.GetMembers().ToArray())
+                    FormatProgramRecursive(m);
                 
-                if (!(nonmsp || forcestatic)) return;
-                
-                foreach (var i in @struct.GetMembers().ToArray())
+                if (!unwrapContainers) return;
+                foreach (var m in container.GetMembers().ToArray())
                 {
-                    if (i is RealizerField { Static: false }) continue;
-                    if (forcestatic && i is RealizerFunction { Static: false } @f)
+                    if (!unwrapContainers) continue;
+                    switch (m)
                     {
-                        ConvertToStatic(f, @struct);
-                        ScanFunctionExecution(f, outConfig);
+                        case RealizerField { Static: false }: continue;
+                        case RealizerProperty prop: container.RemoveMember(prop); continue;
                     }
 
-                    if (!nonmsp) continue;
-                    @struct.RemoveMember(i);
-                    i.Name = @struct.Name + '.' + i.Name;
-                    parent.AddMember(i);
+                    container.RemoveMember(m);
+                    m.Name = member.Name + "." + m.Name;
+                    parent.AddMember(m);
                 }
-                
             } break;
-            
-            case RealizerTypedef @typedef:
+
+            case RealizerContainer:
+                throw new UnreachableException();
+
+            case RealizerFunction fun:
             {
-                foreach (var i in typedef.GetMembers().ToArray()) FormatProgramRecursive(i, outConfig);
-
-                var nonmsp = (outConfig.AbstractingOptions & AbstractingOptions.UnwrapNamespaces) != 0;
-                var forcestatic = (outConfig.AbstractingOptions & AbstractingOptions.NoSelfInstructions) != 0;
-                
-                if (!(nonmsp || forcestatic)) return;
-                
-                foreach (var i in typedef.GetMembers().ToArray())
+                if (!fun.Static && (noInstanceMethod || !canUseLdSelf))
                 {
-                    if (forcestatic && i is RealizerFunction { Static: false } @f)
+                    switch (parent)
                     {
-                        ConvertToStatic(f, typedef);
-                        ScanFunctionExecution(f, outConfig);
+                        case RealizerStructure structure: ConvertToStatic(fun, structure); break;
+                        case RealizerTypedef typedef: ConvertToStatic(fun, typedef); break;
                     }
-
-                    if (!nonmsp) continue;
-                    typedef.RemoveMember(i);
-                    i.Name = typedef.Name + '.' + i.Name;
-                    parent.AddMember(i);
                 }
-                
+                // Fallback to generic scan
+                else ScanFunctionExecution(fun);
             } break;
-            
-            
-            case RealizerContainer: throw new UnreachableException();
+
             default: return;
         }
     }
     
+    private void ConvertToStatic(RealizerFunction instanceFunc, RealizerStructure structure)
+    {
+        instanceFunc.Static = true;
+        var self = instanceFunc.AddParameter("__self__",
+            new ReferenceTypeReference(new NodeTypeReference(structure)), 0);
+        OmegaScanFunctionExecution(instanceFunc, new Argument(self));
+    }
+    private void ConvertToStatic(RealizerFunction instanceFunc, RealizerTypedef typedef)
+    {
+        instanceFunc.Static = true;
+        var self = instanceFunc.AddParameter("__self__",
+            new ReferenceTypeReference(new NodeTypeReference(typedef)), 0);
+        OmegaScanFunctionExecution(instanceFunc, new Argument(self));
+    }
+ 
     
-    private static void ConvertToStatic(RealizerFunction instanceFunc, RealizerStructure structure)
+    private void ScanFunctionExecution(RealizerFunction func)
     {
-        instanceFunc.Static = true;
-        instanceFunc.AddParameter("self", new ReferenceTypeReference(new NodeTypeReference(structure)), 0);
-    }
-    private static void ConvertToStatic(RealizerFunction instanceFunc, RealizerTypedef typedef)
-    {
-        instanceFunc.Static = true;
-        instanceFunc.ReturnType = new NodeTypeReference(typedef);
-        instanceFunc.AddParameter("value", new NodeTypeReference(typedef), 0);
+        OmegaScanFunctionExecution(
+            func,
+            func.Static ? null : canUseLdSelf ? new Self() : throw new UnreachableException()
+        );
     }
 
-
-    private static void ScanFunctionExecution(RealizerFunction instanceFunc, IOutputConfiguration outConfig)
+    private void OmegaScanFunctionExecution(
+        RealizerFunction func,
+        IOmegaExpression? selfReference
+    )
     {
-        foreach (var i in instanceFunc.ExecutionBlocks)
+
+        foreach (var block in func.ExecutionBlocks)
         {
-            switch (i)
+            switch (block)
             {
-                case OmegaCodeCell @omega:
+                case OmegaCodeCell @o:
                 {
                     List<IOmegaInstruction> instructions = [];
-                    foreach (var j in omega.Instructions)
-                        instructions.Add(OmegaScanFunctionExecution(instanceFunc, j, outConfig));
-                    omega.OverrideInstructions([..instructions]);
+                    foreach (var i in o.Instructions)
+                    {
+                        instructions.Add(
+                            OmegaScanInstruction(
+                                func,
+                                selfReference,
+                                i,
+                                AccessMode.Load
+                            ).res);
+                    }
+                    o.OverrideInstructions([.. instructions]);
                 } break;
+                
+                default: throw new NotImplementedException();
             }
         }
+        
     }
 
-
-    private static IOmegaInstruction OmegaScanFunctionExecution(
-        RealizerFunction instanceFunc,
-        IOmegaInstruction i,
-        IOutputConfiguration outConfig)
-        => OmegaScanFunctionExecution(instanceFunc, i, outConfig, false, out _);
-    
-    private static IOmegaInstruction OmegaScanFunctionExecution(
-        RealizerFunction instanceFunc,
-        IOmegaInstruction i,
-        IOutputConfiguration outConfig,
-        
-        // Those both works together: 
-        bool reduceSelfAccess,      //  removes any "self" made by an access
-        out bool doingSelfAccess)   //  returns true if it was an access that was using "self"
+    private (IOmegaInstruction res, IOmegaExpression? subaccess) OmegaScanInstruction(
+        RealizerFunction func,
+        IOmegaExpression? selfReference,
+        IOmegaInstruction instruction,
+        AccessMode accessMode
+    )
     {
-        doingSelfAccess = false;
-        
-        while (true)
+        switch (instruction)
         {
-            switch (i)
+            case Ret @r:
             {
-                
-                case Ret @r:
-                    return new Ret(r.Value != null
-                        ? (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, @r.Value, outConfig)
-                        : null);
-
-                case Assignment @a:
-                {
-                    if (a.Left is not Member { Node: RealizerProperty @p }) return new Assignment(
-                        (IOmegaAssignable)OmegaScanFunctionExecution(instanceFunc, a.Left, outConfig),
-                        (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, a.Right, outConfig));
-                    
-                    var value = (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, a.Right, outConfig);
-                    var func = p.Setter!;
-
-                    return p.Static
-                        ? new Call(func.ReturnType, new Member(func), value)
-                        : new Call(func.ReturnType, new Member(func), new Argument(instanceFunc.Parameters[0]), value);
-                }
-                
-                case Call @c:
-                {
-                    var scannedArgs = c.Arguments.Select(e =>
-                        (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, e, outConfig));
-                    
-                    var function = (IOmegaCallable)OmegaScanFunctionExecution(instanceFunc, c.Callable, outConfig,
-                        true, out var wasFunctionDoingSelfAccess);
-                    
-                    return new Call(c.Type, function, wasFunctionDoingSelfAccess
-                            ? [new Argument(instanceFunc.Parameters[0]), ..scannedArgs]
-                            : [..scannedArgs]);
-                }
-
-                case Self:
-                    return (outConfig.AbstractingOptions & AbstractingOptions.NoSelfInstructions) != 0
-                        ? new Argument(instanceFunc.Parameters[0]) : i;
-
-                case Access @a:
-                {
-                    if (a.Left is Self) doingSelfAccess = true;
-                    
-                    var accessL = (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, a.Left, outConfig);
-                    var accessR = (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, a.Right, outConfig);
-                    
-                    return reduceSelfAccess && doingSelfAccess ? accessR : new Access(accessL, accessR);
-                }
-
-                case Member { Node: RealizerProperty @p } @m:
-                {
-                    var func = p.Getter!;
-                    
-                    if (p.Static)
-                        return new Call(func.ReturnType, new Member(func), []);
-                    
-                    if ((outConfig.AbstractingOptions & AbstractingOptions.NoSelfInstructions) != 0)
-                        return new Call(func.ReturnType, new Member(func), new Argument(instanceFunc.Parameters[0]));
-
-                    return new Access(new Self(),
-                        new Call(func.ReturnType, new Member(func), new Argument(instanceFunc.Parameters[0])));
-                }
-
-                case Add @a: return new Add(a.Type!,
-                    (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, a.Left, outConfig),
-                    (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, a.Right, outConfig));
-                
-                case Mul @a: return new Mul(a.Type!,
-                    (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, a.Left, outConfig),
-                    (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, a.Right, outConfig));
-                
-                case Cmp @a: return new Cmp(a.Op,
-                    (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, a.Left, outConfig),
-                    (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, a.Right, outConfig));
-                
-                case IntTypeCast @a: return new IntTypeCast((IntegerTypeReference)a.Type!,
-                    (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, a.Exp, outConfig));
-                
-                case IntFromPtr @a: return new IntFromPtr((IntegerTypeReference)a.Type!,
-                    (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, a.Exp, outConfig));
-                
-                case PtrFromInt @a: return new PtrFromInt((ReferenceTypeReference)a.Type!,
-                    (IOmegaExpression)OmegaScanFunctionExecution(instanceFunc, a.Exp, outConfig));
-                
-                case Member:
-                case Argument:
-                case Constant:
-                case Alloca:
-                case Throw:
-                    return i;
-                
-                default: throw new UnreachableException();
+                var v = r.Value != null
+                    ? (IOmegaExpression)OmegaScanInstruction(func, selfReference, @r.Value, AccessMode.Load).res
+                    : null;
+                return (new Ret(v), null);
             }
+
+            case Call @c:
+            {
+                var (fun, instance) = OmegaScanInstruction(func, selfReference, c.Callable, AccessMode.Load);
+                List<IOmegaExpression> arguments = [];
+
+                foreach (var i in c.Arguments)
+                    arguments.Add((IOmegaExpression)OmegaScanInstruction(func, selfReference, i, AccessMode.Load).res);
+                
+                IOmegaCallable callable = (IOmegaCallable)fun;
+                IOmegaExpression[] args = callable.Type.IsStatic
+                    ? [..arguments]
+                    : [selfReference!, ..arguments];
+                
+                return (new Call(callable, args), null);
+            }
+
+            case Assignment @a:
+            {
+                var (assignable, inst) = OmegaScanInstruction(func, selfReference, a.Left, AccessMode.Load);
+                var value = (IOmegaExpression)OmegaScanInstruction(func, selfReference, a.Right, AccessMode.Load).res;
+
+                if (assignable is Member { Node: RealizerProperty @p })
+                {
+                    var setter = p.Setter!;
+                    return (new Call(new Member(setter), inst!), null);
+                }
+                return (new Assignment((IOmegaAssignable)assignable, value), null);
+            }
+
+            case Access @a:
+            {
+                var (accessLeftA, accessLeftB) = OmegaScanInstruction(func, selfReference, @a.Left, AccessMode.Load);
+                var (accessRightA, accessRightB) = OmegaScanInstruction(func, selfReference, @a.Right, AccessMode.Load);
+
+                if (accessLeftB != null || accessRightB != null) throw new UnreachableException();
+                
+                if (accessRightA is Member @member)
+                {
+                    switch (member.Node)
+                    {
+                        case RealizerField: goto fallback;
+                        
+                        case RealizerFunction:
+                            return (accessRightA, (IOmegaExpression)accessLeftA);
+
+                        case RealizerProperty @p:
+                        {
+                            if (accessMode == AccessMode.Load)
+                            {
+                                var getter = p.Getter!;
+                                return (new Call( new Member(getter), (IOmegaExpression)accessLeftA), null);
+                            }
+                            return (new Member(p), (IOmegaExpression)accessLeftA);
+                        }
+                        
+                        default: throw new NotImplementedException();
+                    }
+                }
+                
+                fallback:
+                return (new Access((IOmegaExpression)accessLeftA, (Member)accessRightA), null);
+            }
+
+
+            case Add @a:
+            {
+                var left = (IOmegaExpression)OmegaScanInstruction(func, selfReference, a.Left, AccessMode.Load).res;
+                var right = (IOmegaExpression)OmegaScanInstruction(func, selfReference, a.Right, AccessMode.Load).res;
+                return (new Add(a.Type!, left, right), null);
+            }
+            case Mul @a:
+            {
+                var left = (IOmegaExpression)OmegaScanInstruction(func, selfReference, a.Left, AccessMode.Load).res;
+                var right = (IOmegaExpression)OmegaScanInstruction(func, selfReference, a.Right, AccessMode.Load).res;
+                return (new Mul(a.Type!, left, right), null);
+            }
+
+            case Cmp @c:
+            {
+                var left = (IOmegaExpression)OmegaScanInstruction(func, selfReference, c.Left, AccessMode.Load).res;
+                var right = (IOmegaExpression)OmegaScanInstruction(func, selfReference, c.Right, AccessMode.Load).res;
+                return (new Cmp(c.Op, left, right), null);
+            }
+            
+            case Self: return (selfReference!, null);
+            
+            case Val v: return (new Val((IOmegaExpression)OmegaScanInstruction(func, selfReference, v.Expression, AccessMode.Load).res), null);
+            case Ref r: return (new Ref((IOmegaExpression)OmegaScanInstruction(func, selfReference, r.Expression, AccessMode.Load).res), null);
+            case IntFromPtr r: return (new Ref((IOmegaExpression)OmegaScanInstruction(func, selfReference, r.Expression, AccessMode.Load).res), null);
+            case PtrFromInt r: return (new Ref((IOmegaExpression)OmegaScanInstruction(func, selfReference, r.Expression, AccessMode.Load).res), null);
+            case Typeof t: return (new Typeof((IOmegaExpression)OmegaScanInstruction(func, selfReference, t.Expression, AccessMode.Load).res), null);
+            
+            case Member:
+            case Alloca:
+            case Argument:
+            case Constant:
+            case Register:
+                return (instruction, null);
+            
+            default: throw new NotImplementedException();
         }
     }
+    
+    private enum AccessMode { Load, Store }
 }
