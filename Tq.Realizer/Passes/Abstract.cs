@@ -18,6 +18,8 @@ internal class Abstract: IProcessingPass
     private bool noInstanceMethod => (_outConfig.AbstractingOptions & AbstractingOptions.NoInstanceMethod) != 0;
     private bool noInheritance => (_outConfig.AbstractingOptions & AbstractingOptions.NoInheritance) != 0;
     private bool canUseLdSelf => (_outConfig.GenericAllowedFeatures & GenericAllowedFeatures.LdSelf) != 0;
+    private bool initFieldsOnCall => (_outConfig.GenericAllowedFeatures & GenericAllowedFeatures.InitializeFieldsOnCall) != 0;
+    
     
     public void Pass(RealizerProgram program, IOutputConfiguration outConfig)
     {
@@ -128,24 +130,15 @@ internal class Abstract: IProcessingPass
     )
     {
 
-        foreach (var block in func.ExecutionBlocks)
+        foreach (var block in func.ExecutionBlocks.ToArray())
         {
             switch (block)
             {
                 case OmegaCodeCell @o:
                 {
-                    List<IOmegaInstruction> instructions = [];
+                    var newCodeCell = func.ReplaceOmegaCodeCell(o);
                     foreach (var i in o.Instructions)
-                    {
-                        instructions.Add(
-                            OmegaScanInstruction(
-                                func,
-                                selfReference,
-                                i,
-                                AccessMode.Load
-                            ).res);
-                    }
-                    o.OverrideInstructions([.. instructions]);
+                        OmegaScanInstruction(func, newCodeCell, selfReference, i);
                 } break;
                 
                 default: throw new NotImplementedException();
@@ -154,56 +147,117 @@ internal class Abstract: IProcessingPass
         
     }
 
-    private (IOmegaInstruction res, IOmegaExpression? subaccess) OmegaScanInstruction(
+    private void OmegaScanInstruction(
         RealizerFunction func,
+        OmegaCodeCell cell,
         IOmegaExpression? selfReference,
-        IOmegaInstruction instruction,
-        AccessMode accessMode
-    )
+        IOmegaInstruction instruction)
     {
         switch (instruction)
         {
             case Ret @r:
             {
-                var v = r.Value != null
-                    ? (IOmegaExpression)OmegaScanInstruction(func, selfReference, @r.Value, AccessMode.Load).res
-                    : null;
-                return (new Ret(v), null);
-            }
-
-            case Call @c:
-            {
-                var (fun, instance) = OmegaScanInstruction(func, selfReference, c.Callable, AccessMode.Load);
-                List<IOmegaExpression> arguments = [];
-
-                foreach (var i in c.Arguments)
-                    arguments.Add((IOmegaExpression)OmegaScanInstruction(func, selfReference, i, AccessMode.Load).res);
-                
-                IOmegaCallable callable = (IOmegaCallable)fun;
-                IOmegaExpression[] args = callable.Type.IsStatic
-                    ? [..arguments]
-                    : [selfReference!, ..arguments];
-                
-                return (new Call(callable, args), null);
-            }
-
+                var v = r.Value == null ? null
+                    : OmegaScanExpression(func, cell, selfReference, r.Value, AccessMode.Load)._ref;
+                cell.Writer.Ret(v);
+            } break;
+            
             case Assignment @a:
             {
-                var (assignable, inst) = OmegaScanInstruction(func, selfReference, a.Left, AccessMode.Load);
-                var value = (IOmegaExpression)OmegaScanInstruction(func, selfReference, a.Right, AccessMode.Load).res;
+                var (assignable, inst) = OmegaScanExpression(func, cell, selfReference, a.Left, AccessMode.Load);
+                var value = OmegaScanExpression(func, cell, selfReference, a.Right, AccessMode.Load)._ref;
 
                 if (assignable is Member { Node: RealizerProperty @p })
                 {
                     var setter = p.Setter!;
-                    return (new Call(new Member(setter), inst!), null);
+                    cell.Writer.Call(new Member(setter), inst!);
                 }
-                return (new Assignment((IOmegaAssignable)assignable, value), null);
+                cell.Writer.Assignment((IOmegaAssignable)assignable, value);
+            } break;
+
+            case Call @c:
+            {
+                var (callableRef, callableBase) = OmegaScanExpression(
+                    func, cell, selfReference, c.Callable, AccessMode.Load);
+                
+                IOmegaExpression? arg0 = null;
+                if (callableBase != null)
+                {
+                    if (callableBase is not Argument)
+                    {
+                        arg0 = cell.Writer.GetNewRegister(callableBase.Type!);
+                        cell.Writer.Assignment((Register)arg0, callableBase);
+                    }
+                    else arg0 = callableBase;
+                }
+
+                List<IOmegaExpression> args = [];
+                if (arg0 != null) args.Add(arg0);
+                args.AddRange(c.Arguments.Select(
+                    arg=> OmegaScanExpression(func, cell, selfReference, arg, AccessMode.Load)._ref));
+
+                cell.Writer.Call((IOmegaCallable)callableRef, [..args]);
+            } break;
+            
+            case CallIntrinsic @ci:
+            {
+                switch (ci.Function)
+                {
+                    case IntrinsicFunctions.initFields: break;
+                    default: throw new NotImplementedException();
+                }
+            } break;
+            
+            default: throw new NotImplementedException();
+        }
+    }
+
+    private (IOmegaExpression _ref, IOmegaExpression? _base) OmegaScanExpression(
+        RealizerFunction func,
+        OmegaCodeCell cell,
+        IOmegaExpression? selfReference,
+        IOmegaExpression instruction,
+        AccessMode accessMode)
+    {
+        switch (instruction)
+        {
+            case Call @c:
+            {
+                var (callableRef, callableBase) = OmegaScanExpression(
+                    func, cell, selfReference, c.Callable, AccessMode.Load);
+                
+                IOmegaExpression? arg0 = null;
+                if (callableBase != null)
+                {
+                    if (callableBase is not Argument)
+                    {
+                        arg0 = cell.Writer.GetNewRegister(callableBase.Type!);
+                        cell.Writer.Assignment((Register)arg0, callableBase);
+                    }
+                    else arg0 = callableBase;
+                }
+
+                List<IOmegaExpression> args = [];
+                if (arg0 != null) args.Add(arg0);
+                args.AddRange(c.Arguments.Select(
+                    arg=> OmegaScanExpression(func, cell, selfReference, arg, AccessMode.Load)._ref));
+
+                return (new Call((IOmegaCallable)callableRef, [..args]), null);
+            }
+
+            case CallIntrinsic @ci:
+            {
+                switch (ci.Function)
+                {
+                    default:
+                        throw new NotImplementedException();
+                }
             }
 
             case Access @a:
             {
-                var (accessLeftA, accessLeftB) = OmegaScanInstruction(func, selfReference, @a.Left, AccessMode.Load);
-                var (accessRightA, accessRightB) = OmegaScanInstruction(func, selfReference, @a.Right, AccessMode.Load);
+                var (accessLeftA, accessLeftB) = OmegaScanExpression(func, cell, selfReference, @a.Left, AccessMode.Load);
+                var (accessRightA, accessRightB) = OmegaScanExpression(func, cell, selfReference, @a.Right, AccessMode.Load);
 
                 if (accessLeftB != null || accessRightB != null) throw new UnreachableException();
                 
@@ -214,16 +268,16 @@ internal class Abstract: IProcessingPass
                         case RealizerField: goto fallback;
                         
                         case RealizerFunction:
-                            return (accessRightA, (IOmegaExpression)accessLeftA);
+                            return (accessRightA, accessLeftA);
 
                         case RealizerProperty @p:
                         {
                             if (accessMode == AccessMode.Load)
                             {
                                 var getter = p.Getter!;
-                                return (new Call( new Member(getter), (IOmegaExpression)accessLeftA), null);
+                                return (new Call( new Member(getter), accessLeftA), null);
                             }
-                            return (new Member(p), (IOmegaExpression)accessLeftA);
+                            return (new Member(p), accessLeftA);
                         }
                         
                         default: throw new NotImplementedException();
@@ -231,37 +285,37 @@ internal class Abstract: IProcessingPass
                 }
                 
                 fallback:
-                return (new Access((IOmegaExpression)accessLeftA, (Member)accessRightA), null);
+                return (new Access(accessLeftA, (Member)accessRightA), null);
             }
 
 
             case Add @a:
             {
-                var left = (IOmegaExpression)OmegaScanInstruction(func, selfReference, a.Left, AccessMode.Load).res;
-                var right = (IOmegaExpression)OmegaScanInstruction(func, selfReference, a.Right, AccessMode.Load).res;
+                var left = OmegaScanExpression(func, cell, selfReference, a.Left, AccessMode.Load)._ref;
+                var right = OmegaScanExpression(func, cell, selfReference, a.Right, AccessMode.Load)._ref;
                 return (new Add(a.Type!, left, right), null);
             }
             case Mul @a:
             {
-                var left = (IOmegaExpression)OmegaScanInstruction(func, selfReference, a.Left, AccessMode.Load).res;
-                var right = (IOmegaExpression)OmegaScanInstruction(func, selfReference, a.Right, AccessMode.Load).res;
+                var left = OmegaScanExpression(func, cell, selfReference, a.Left, AccessMode.Load)._ref;
+                var right = OmegaScanExpression(func, cell, selfReference, a.Right, AccessMode.Load)._ref;
                 return (new Mul(a.Type!, left, right), null);
             }
 
             case Cmp @c:
             {
-                var left = (IOmegaExpression)OmegaScanInstruction(func, selfReference, c.Left, AccessMode.Load).res;
-                var right = (IOmegaExpression)OmegaScanInstruction(func, selfReference, c.Right, AccessMode.Load).res;
+                var left = OmegaScanExpression(func, cell, selfReference, c.Left, AccessMode.Load)._ref;
+                var right = OmegaScanExpression(func, cell, selfReference, c.Right, AccessMode.Load)._ref;
                 return (new Cmp(c.Op, left, right), null);
             }
             
             case Self: return (selfReference!, null);
             
-            case Val v: return (new Val((IOmegaExpression)OmegaScanInstruction(func, selfReference, v.Expression, AccessMode.Load).res), null);
-            case Ref r: return (new Ref((IOmegaExpression)OmegaScanInstruction(func, selfReference, r.Expression, AccessMode.Load).res), null);
-            case IntFromPtr r: return (new Ref((IOmegaExpression)OmegaScanInstruction(func, selfReference, r.Expression, AccessMode.Load).res), null);
-            case PtrFromInt r: return (new Ref((IOmegaExpression)OmegaScanInstruction(func, selfReference, r.Expression, AccessMode.Load).res), null);
-            case Typeof t: return (new Typeof((IOmegaExpression)OmegaScanInstruction(func, selfReference, t.Expression, AccessMode.Load).res), null);
+            case Val v:return (new Val(OmegaScanExpression(func, cell, selfReference, v.Expression, AccessMode.Load)._ref), null);
+            case Ref r: return (new Ref(OmegaScanExpression(func, cell, selfReference, r.Expression, AccessMode.Load)._ref), null);
+            case IntFromPtr r: return (new Ref(OmegaScanExpression(func, cell, selfReference, r.Expression, AccessMode.Load)._ref), null);
+            case PtrFromInt r: return (new Ref(OmegaScanExpression(func, cell, selfReference, r.Expression, AccessMode.Load)._ref), null);
+            case Typeof t: return (new Typeof(OmegaScanExpression(func, cell, selfReference, t.Expression, AccessMode.Load)._ref), null);
             
             case Member:
             case Alloca:
