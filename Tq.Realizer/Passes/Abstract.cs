@@ -313,9 +313,12 @@ internal class Abstract: IProcessingPass
             
             case Val v:return (new Val(OmegaScanExpression(func, cell, selfReference, v.Expression, AccessMode.Load)._ref), null);
             case Ref r: return (new Ref(OmegaScanExpression(func, cell, selfReference, r.Expression, AccessMode.Load)._ref), null);
-            case IntFromPtr r: return (new Ref(OmegaScanExpression(func, cell, selfReference, r.Expression, AccessMode.Load)._ref), null);
-            case PtrFromInt r: return (new Ref(OmegaScanExpression(func, cell, selfReference, r.Expression, AccessMode.Load)._ref), null);
+            case IntFromPtr r: return (new IntFromPtr((IntegerTypeReference)r.Type!, OmegaScanExpression(func, cell, selfReference, r.Expression, AccessMode.Load)._ref), null);
+            case PtrFromInt r: return (new IntFromPtr((IntegerTypeReference)r.Type!, OmegaScanExpression(func, cell, selfReference, r.Expression, AccessMode.Load)._ref), null);
             case Typeof t: return (new Typeof(OmegaScanExpression(func, cell, selfReference, t.Expression, AccessMode.Load)._ref), null);
+            case LenOf t: return (new LenOf(OmegaScanExpression(func, cell, selfReference, t.Expression, AccessMode.Load)._ref), null);
+            
+            case IntTypeCast t: return (new IntTypeCast((IntegerTypeReference)t.Type!, OmegaScanExpression(func, cell, selfReference, t.Exp, AccessMode.Load)._ref), null); break;
             
             case Member:
             case Alloca:
