@@ -161,10 +161,22 @@ internal class Abstract: IProcessingPass
                     : OmegaScanExpression(func, cell, selfReference, r.Value, AccessMode.Load)._ref;
                 cell.Writer.Ret(v);
             } break;
+
+            case Branch @b:
+            {
+                cell.Writer.Branch(b.Cell);
+            } break;
+
+            case CBranch @cb:
+            {
+                cell.Writer.CBranch(
+                    OmegaScanExpression(func, cell, selfReference, cb.Expression, AccessMode.Load)._ref,
+                    cb.IfTrue, cb.IfFalse);
+            } break;
             
             case Assignment @a:
             {
-                var (assignable, inst) = OmegaScanExpression(func, cell, selfReference, a.Left, AccessMode.Load);
+                var (assignable, inst) = OmegaScanExpression(func, cell, selfReference, a.Left, AccessMode.Store);
                 var value = OmegaScanExpression(func, cell, selfReference, a.Right, AccessMode.Load)._ref;
 
                 if (assignable is Member { Node: RealizerProperty @p })
@@ -302,6 +314,13 @@ internal class Abstract: IProcessingPass
                 return (new Mul(a.Type!, left, right), null);
             }
 
+            case Indexer @i:
+            {
+                var a = OmegaScanExpression(func, cell, selfReference, i.Slice, accessMode)._ref;
+                var b = OmegaScanExpression(func, cell, selfReference, i.Index, accessMode)._ref;
+                return (new Indexer(a, b), null);
+            }
+            
             case Cmp @c:
             {
                 var left = OmegaScanExpression(func, cell, selfReference, c.Left, AccessMode.Load)._ref;
@@ -319,6 +338,14 @@ internal class Abstract: IProcessingPass
             case LenOf t: return (new LenOf(OmegaScanExpression(func, cell, selfReference, t.Expression, AccessMode.Load)._ref), null);
             
             case IntTypeCast t: return (new IntTypeCast((IntegerTypeReference)t.Type!, OmegaScanExpression(func, cell, selfReference, t.Exp, AccessMode.Load)._ref), null); break;
+            case PtrTypeCast t: return (new PtrTypeCast((ReferenceTypeReference)t.Type!, OmegaScanExpression(func, cell, selfReference, t.Exp, AccessMode.Load)._ref), null); break;
+            
+            case Slice s:
+                return (new Slice(
+                    s.ElementType,
+                    (OmegaScanExpression(func, cell, selfReference, s.Pointer, AccessMode.Load)._ref),
+                    (OmegaScanExpression(func, cell, selfReference, s.Lenght, AccessMode.Load)._ref)
+                ), null);
             
             case Member:
             case Alloca:
