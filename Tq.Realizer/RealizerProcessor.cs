@@ -1,6 +1,6 @@
-using Tq.Realizeer.Core.Program;
-using Tq.Realizeer.Core.Program.Builder;
-using Tq.Realizeer.Core.Program.Member;
+using Tq.Realizer.Core.Program;
+using Tq.Realizer.Core.Program.Builder;
+using Tq.Realizer.Core.Program.Member;
 using Tq.Realizer.Compiler;
 using Tq.Realizer.Core.Configuration.LangOutput;
 using Tq.Realizer.Passes;

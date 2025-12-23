@@ -1,4 +1,4 @@
-using Tq.Realizeer.Core.Program;
+using Tq.Realizer.Core.Program;
 using Tq.Realizer.Core.Configuration.LangOutput;
 
 namespace Tq.Realizer.Passes;

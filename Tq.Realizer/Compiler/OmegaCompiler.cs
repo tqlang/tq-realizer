@@ -1,4 +1,4 @@
-using Tq.Realizer.Core.Builder.Execution.Omega;
+using Tq.Realizer.Core.Execution.Omega;
 using Tq.Realizer.Core.Configuration.LangOutput;
 using Tq.Realizer.Intermediate;
 
